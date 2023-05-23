@@ -11,6 +11,9 @@
 #include <algorithm>    // std::shuffle
 #include <random>      // std::default_random_engine
 #include <chrono>       // std::chrono::system_clock
+#include <fstream>
+#include <iostream>     // std::cout, std::fixed
+#include <iomanip>    
 
 using boost::heap::pairing_heap;
 using boost::heap::compare;
@@ -19,19 +22,26 @@ using boost::unordered_set;
 using namespace std;
 
 
-class ProblemProblemInstance {
+class ProblemInstance {
 public:
 	int m_numCols;
 	int m_numRows;
 	int m_mapSize;
 
-	ProblemProblemInstance(){}
-	ProblemProblemInstance(const std::string& _mapFileName, const std::string& _agentFileName, 
-		int numAgents = 0, int numRows = 0, int numCols = 0, int numObstacles = 0, int warehouseWidth = 0);
+	
+	ProblemInstance(const std::string& _mapFileName, const std::string& _agentFileName, 
+		int numAgents = 0, int numRows = 0, int numCols = 0, int numObstacles = 0, int warehouseWidth = 0){
+
+			m_mapFileName = _mapFileName;
+			bool success = this->loadMap();
+
+			std::cout << "success " << success <<endl;
+			this->printMap();
+		}
 
 	void printAgents() const;
 
-    inline bool isObstacle(int loc) const { return obstacleMap[loc]; }
+    inline bool isObstacle(int loc) const { return m_obstacleMap[loc]; }
     inline bool validMove(int curr, int next) const;
     list<int> getNeighbors(int curr) const;
 
@@ -55,15 +65,15 @@ public:
 
 	int getDegree(int loc) const
 	{
-		assert(loc >= 0 && loc < m_mapSize && !obstacleMap[loc]);
+		assert(loc >= 0 && loc < m_mapSize && !m_obstacleMap[loc]);
 		int degree = 0;
-		if (0 <= loc - m_numCols && !obstacleMap[loc - m_numCols])
+		if (0 <= loc - m_numCols && !m_obstacleMap[loc - m_numCols])
 			degree++;
-		if (loc + m_numCols < m_mapSize && !obstacleMap[loc + m_numCols])
+		if (loc + m_numCols < m_mapSize && !m_obstacleMap[loc + m_numCols])
 			degree++;
-		if (loc % m_numCols > 0 && !obstacleMap[loc - 1])
+		if (loc % m_numCols > 0 && !m_obstacleMap[loc - 1])
 			degree++;
-		if (loc % m_numCols < m_numCols - 1 && !obstacleMap[loc + 1])
+		if (loc % m_numCols < m_numCols - 1 && !m_obstacleMap[loc + 1])
 			degree++;
 		return degree;
 	}
@@ -72,7 +82,7 @@ public:
 
 private:
 
-	  vector<bool> obstacleMap;
+	  vector<bool> m_obstacleMap;
 	  string m_mapFileName;
 	  string m_agentFilename;
 
@@ -102,6 +112,7 @@ bool ProblemInstance::loadMap() {
 	using namespace boost;
 	using namespace std;
 
+	std::cout << "map file name " << m_mapFileName << endl;
 	ifstream myfile(m_mapFileName.c_str());
 
 	if (!myfile.is_open())
@@ -111,22 +122,28 @@ bool ProblemInstance::loadMap() {
 	tokenizer< char_separator<char> >::iterator beg;
 	getline(myfile, line);
 	
-	char_separator<char> sep(",");
+	char_separator<char> sep(" ");
+	getline(myfile, line);
 	tokenizer< char_separator<char> > tok(line, sep);
 	beg = tok.begin();
+	beg++;
 	m_numRows = atoi((*beg).c_str()); // read number of rows
+	getline(myfile, line);
+	tokenizer< char_separator<char> > tok2(line, sep);
+	beg = tok2.begin();
 	beg++;
 	m_numCols = atoi((*beg).c_str()); // read number of cols
+	getline(myfile, line); // skip "map"
 	
-	mapSize = m_numCols * m_numRows;
+	m_mapSize = m_numCols * m_numRows;
 
-	m_obstacleMap.resize(mapSize, false);
+	m_obstacleMap.resize(m_mapSize, false);
 
 	// read map (and start/goal locations)
 	for (int i = 0; i < m_numRows; i++) {
 		getline(myfile, line);
 		for (int j = 0; j < m_numCols; j++) {
-			my_map[linearizeCoordinate(i, j)] = (line[j] != '.');
+			m_obstacleMap[linearizeCoordinate(i, j)] = (line[j] != '.');
 		}
 	}
 	myfile.close();
@@ -136,12 +153,10 @@ bool ProblemInstance::loadMap() {
 
 
 void ProblemInstance::printMap() const
-{
-	for (int i = 0; i< m_numRows; i++)
-	{
-		for (int j = 0; j < m_numCols; j++)
-		{
-			if (this->my_map[linearizeCoordinate(i, j)])
+{	
+	for (int i = 0; i< m_numRows; i++) {
+		for (int j = 0; j < m_numCols; j++) {
+			if (this->m_obstacleMap[linearizeCoordinate(i, j)])
 				std::cout << '@';
 			else
 				std::cout << '.';
@@ -165,7 +180,7 @@ void ProblemInstance::saveMap() const
 
 	for (int i = 0; i < m_numRows; i++) {
 		for (int j = 0; j < m_numCols; j++) {
-			if (my_map[linearizeCoordinate(i, j)])
+			if (m_obstacleMap[linearizeCoordinate(i, j)])
 				myfile << "@";
 			else
 				myfile << ".";

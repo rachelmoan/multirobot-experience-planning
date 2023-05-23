@@ -20,7 +20,9 @@ int main(int argc, char** argv){
     }
 
     std::cout << "Map File Name is " << mapFName << std::endl;
-        
+
+    ProblemInstance prob(mapFName, "agentFile", 2);
+
 
 
  
